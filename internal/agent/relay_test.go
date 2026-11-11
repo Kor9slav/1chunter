@@ -55,6 +55,16 @@ func TestLoggingWriterRewritesAdvertisedAddress(t *testing.T) {
 	}
 }
 
+func TestRelayIPAllowed(t *testing.T) {
+	allowed := "192.168.153.132, 192.168.153.137"
+	if !relayIPAllowed(allowed, "192.168.153.132") || !relayIPAllowed(allowed, "192.168.153.137") {
+		t.Fatal("allowed IP rejected")
+	}
+	if relayIPAllowed(allowed, "192.168.153.138") {
+		t.Fatal("unexpected IP allowed")
+	}
+}
+
 func TestPrintable(t *testing.T) {
 	if result := printable([]byte{'A', 0, 'B'}); result != "A.B" {
 		t.Fatalf("unexpected printable representation: %s", result)

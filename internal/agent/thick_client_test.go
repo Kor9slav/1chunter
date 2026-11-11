@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestThickWorkerPorts(t *testing.T) {
+	ports := thickWorkerPorts(1541)
+	if len(ports) != 32 || ports[0] != 1560 || ports[len(ports)-1] != 1591 {
+		t.Fatalf("unexpected default worker ports: %v", ports)
+	}
+	ports = thickWorkerPorts(1641)
+	if len(ports) != 64 || ports[0] != 1560 || ports[len(ports)-1] != 1691 {
+		t.Fatalf("unexpected secondary cluster worker ports: %v", ports)
+	}
+}
+
 func TestThickInitialRequestProfiles(t *testing.T) {
 	modulus := make([]byte, 128)
 	cluster := thickProfile{

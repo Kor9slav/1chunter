@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"onechunter/internal/agent"
@@ -258,9 +259,13 @@ func runAgentRelay(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Для relay на внешнем адресе обязателен --allow с IP Windows-клиента")
 		return 2
 	}
-	if *allowIP != "" && net.ParseIP(*allowIP) == nil {
-		fmt.Fprintln(stderr, "Некорректный IP в --allow")
-		return 2
+	if *allowIP != "" {
+		for _, address := range strings.Split(*allowIP, ",") {
+			if net.ParseIP(strings.TrimSpace(address)) == nil {
+				fmt.Fprintln(stderr, "Некорректный IP в --allow")
+				return 2
+			}
+		}
 	}
 
 	err := agent.RunRelay(agent.RelayConfig{

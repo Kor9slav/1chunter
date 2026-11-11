@@ -78,8 +78,8 @@ func RunRelay(config RelayConfig, output io.Writer) error {
 			_ = connection.Close()
 			continue
 		}
-		if config.AllowIP != "" && remoteIP != config.AllowIP {
-			fmt.Fprintf(output, "Подключение отклонено для %s: разрешён только %s\n", remoteIP, config.AllowIP)
+		if !relayIPAllowed(config.AllowIP, remoteIP) {
+			fmt.Fprintf(output, "Подключение отклонено для %s: разрешены только %s\n", remoteIP, config.AllowIP)
 			_ = connection.Close()
 			continue
 		}
@@ -135,6 +135,18 @@ func proxyRelayConnection(connection net.Conn, config RelayConfig, targetAddress
 	waitGroup.Wait()
 	fmt.Fprintf(output, "Соединение %s завершено.\n", connection.RemoteAddr())
 	return nil
+}
+
+func relayIPAllowed(allowed, remoteIP string) bool {
+	if allowed == "" {
+		return true
+	}
+	for _, address := range strings.Split(allowed, ",") {
+		if strings.TrimSpace(address) == remoteIP {
+			return true
+		}
+	}
+	return false
 }
 
 type loggingWriter struct {

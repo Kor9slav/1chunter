@@ -255,6 +255,44 @@ func newProtocolUUID() (string, error) {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", data[0:4], data[4:6], data[6:8], data[8:10], data[10:16]), nil
 }
 
+func availableThickWorkerEndpoints(ctx context.Context, endpoint string, clusterPort int, timeout time.Duration) []string {
+	ports := thickWorkerPorts(clusterPort)
+	endpoints := make([]string, 0, len(ports))
+	for _, port := range ports {
+		if ctx.Err() != nil {
+			break
+		}
+		candidate := thickWorkerPort(endpoint, port)
+		probe, err := (&net.Dialer{Timeout: min(timeout, 500*time.Millisecond)}).DialContext(ctx, "tcp", candidate)
+		if err != nil {
+			continue
+		}
+		_ = probe.Close()
+		endpoints = append(endpoints, candidate)
+	}
+	return endpoints
+}
+
+func thickWorkerPorts(clusterPort int) []int {
+	ports := make([]int, 0, 64)
+	seen := make(map[int]struct{})
+	addRange := func(start, end int) {
+		for port := start; port <= end && port <= 65535; port++ {
+			if port < 1 {
+				continue
+			}
+			if _, exists := seen[port]; exists {
+				continue
+			}
+			seen[port] = struct{}{}
+			ports = append(ports, port)
+		}
+	}
+	addRange(1560, 1591)
+	addRange(clusterPort+19, clusterPort+50)
+	return ports
+}
+
 func thickWorkerPort(endpoint string, port int) string {
 	host, _, _ := net.SplitHostPort(endpoint)
 	return net.JoinHostPort(host, strconv.Itoa(port))

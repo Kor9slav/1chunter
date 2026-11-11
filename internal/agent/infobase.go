@@ -73,9 +73,6 @@ func (client Client) CreateInfoBase(ctx context.Context, endpoint, username, pas
 	if !inspection.Accepted {
 		return result, fmt.Errorf("аутентификация ragent не выполнена")
 	}
-	if !strings.HasPrefix(inspection.PlatformVersion, "8.3.27.") {
-		return result, fmt.Errorf("создание ИБ пока поддерживается только для 1С 8.3.27, обнаружена версия %s", inspection.PlatformVersion)
-	}
 
 	var cluster *ClusterInfo
 	for index := range inspection.Clusters {

@@ -20,6 +20,7 @@ func runInfoBaseExec(args []string, stdout, stderr io.Writer) int {
 	agentPort := flags.Int("agent-port", 1540, "Порт ragent")
 	clusterName := flags.String("cluster", "", "Имя кластера")
 	clusterPort := flags.Int("cluster-port", 0, "Порт кластера; по умолчанию определяется автоматически")
+	workerPort := flags.Int("worker-port", 0, "Порт рабочего процесса; по умолчанию определяется автоматически")
 	infoBase := flags.String("infobase", "", "Имя информационной базы")
 	command := flags.String("command", "", "Команда для выполнения на сервере 1С")
 	_ = flags.Bool("confirm-exec", false, "Больше не требуется; оставлен для совместимости")
@@ -31,7 +32,8 @@ func runInfoBaseExec(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if *target == "" || *clusterName == "" || *infoBase == "" || *command == "" ||
-		*agentPort < 1 || *agentPort > 65535 || *clusterPort < 0 || *clusterPort > 65535 || *timeout <= 0 {
+		*agentPort < 1 || *agentPort > 65535 || *clusterPort < 0 || *clusterPort > 65535 ||
+		*workerPort < 0 || *workerPort > 65535 || *timeout <= 0 {
 		fmt.Fprintln(stderr, "Укажите --target, --cluster, --infobase, --command и корректные параметры подключения")
 		return 2
 	}
@@ -41,6 +43,7 @@ func runInfoBaseExec(args []string, stdout, stderr io.Writer) int {
 		*username, os.Getenv("ONECHUNTER_AGENT_PASSWORD"), *workstation, agent.ExecuteCommandConfig{
 			ClusterName: *clusterName,
 			ClusterPort: *clusterPort,
+			WorkerPort:  *workerPort,
 			InfoBase:    *infoBase,
 			Command:     *command,
 		}, *timeout)
