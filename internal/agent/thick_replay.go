@@ -184,9 +184,6 @@ func replayThickSession(session *thickSession, command, workerEndpoint, infoBase
 	if err != nil {
 		return "", err
 	}
-	if len(targetHost) != len("192.168.153.132") {
-		return "", fmt.Errorf("подмена адреса relay в кадрах не поддерживается")
-	}
 	framesJSON := thickFramesJSON
 	if strings.HasPrefix(platformVersion, "8.3.23.") {
 		framesJSON = thickFramesV23JSON
@@ -250,7 +247,7 @@ func replayThickSession(session *thickSession, command, workerEndpoint, infoBase
 				commandResponses++
 			}
 		}
-		if bytes.Contains(frame, []byte("/e1cib/opersec/insert")) && !bytes.Contains(previousResponse, []byte("InteractiveSecurityException")) {
+		if bytes.Contains(frame, []byte("/e1cib/opersec/insert")) && commandResponses == 0 && !bytes.Contains(previousResponse, []byte("InteractiveSecurityException")) {
 			continue
 		}
 		if _, err := session.connection.Write(frame); err != nil {
