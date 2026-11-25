@@ -26,9 +26,22 @@
 
 Другие версии могут работать, но не считаются проверенными. Поддержка MSSQL заявлена в интерфейсе, но не проверена.
 
-## Сборка
+## Установка через go install
 
 Требуется Go 1.24:
+
+```bash
+go install github.com/Kor9slav/1chunter/cmd/1chunter@latest
+```
+
+Бинарник устанавливается в `$(go env GOPATH)/bin`. Если каталога нет в `PATH`:
+
+```bash
+export PATH="$(go env GOPATH)/bin:$PATH"
+1chunter help
+```
+
+## Сборка из исходников
 
 ```bash
 ./build.sh

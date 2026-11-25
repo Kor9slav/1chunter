@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"onechunter/internal/agent"
+	"github.com/Kor9slav/1chunter/internal/agent"
 )
 
 func runAgentBrute(args []string, stdout, stderr io.Writer) int {

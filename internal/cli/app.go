@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"onechunter/internal/agent"
-	"onechunter/internal/discovery"
+	"github.com/Kor9slav/1chunter/internal/agent"
+	"github.com/Kor9slav/1chunter/internal/discovery"
 )
 
 const version = "0.1.0"

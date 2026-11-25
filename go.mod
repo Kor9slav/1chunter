@@ -1,4 +1,4 @@
-module onechunter
+module github.com/Kor9slav/1chunter
 
 go 1.24.0
 

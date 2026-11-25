@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"onechunter/internal/cli"
+	"github.com/Kor9slav/1chunter/internal/cli"
 )
 
 func main() {
