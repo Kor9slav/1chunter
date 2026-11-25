@@ -1,10 +1,13 @@
 package agent
 
 import (
+	"bufio"
 	"encoding/binary"
 	"encoding/hex"
+	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFirstTextRunFindsRussianText(t *testing.T) {
@@ -127,5 +130,74 @@ func TestClusterEntriesIncludePort(t *testing.T) {
 	}
 	if clusters[0].Port != 1541 {
 		t.Fatalf("unexpected cluster port: %d", clusters[0].Port)
+	}
+}
+
+func TestAdminRequestParameters(t *testing.T) {
+	tests := []struct {
+		name            string
+		platformVersion string
+		flagOverride    byte
+		expectedID      byte
+		expectedFlag    byte
+	}{
+		{name: "default", platformVersion: "8.3.22", expectedID: 0x11, expectedFlag: 0x06},
+		{name: "8.3.23", platformVersion: "8.3.23.1782", expectedID: 0x11, expectedFlag: 0x4c},
+		{name: "8.3.27", platformVersion: "8.3.27.1936", expectedID: 0xa1, expectedFlag: 0x53},
+		{name: "override", platformVersion: "8.3.27.1936", flagOverride: 0x1d, expectedID: 0xa1, expectedFlag: 0x1d},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			id, flag := adminRequestParameters(test.platformVersion, test.flagOverride)
+			if id != test.expectedID || flag != test.expectedFlag {
+				t.Fatalf("unexpected parameters: id=%#x flag=%#x", id, flag)
+			}
+		})
+	}
+}
+
+func TestClusterEntriesLengthPrefixedName(t *testing.T) {
+	encoded := "42 8f aa 87 45 4b 82 cb 23 95 9c 4e 34 41 8a 16 10 4c 8d f4 0a 37 00 db d8 15 c2 d5 49 37 87 14 f0 50 08 40 9b 21 34 39 2a 13 f8 c4 9a 09 43 6c 75 73 74 65 72 31 43 c2 da 05 31 43 2d 30 35 8d 05 06 20 a1 8b 3c 81 81 82 81 81 82 81 81 82 9a 09 30 20 32 20 2a 20 2a 20 2a 20 20 a1 81 a4 91 00 40 e9 fe b6 01 00 00 66 53 b2 a6"
+	data, err := hex.DecodeString(strings.ReplaceAll(encoded, " ", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusters := clusterEntries(data)
+	if len(clusters) != 1 {
+		t.Fatalf("expected one cluster, got %d", len(clusters))
+	}
+	if clusters[0].Name != "Cluster1C" || clusters[0].Port != 1541 {
+		t.Fatalf("unexpected cluster: %+v", clusters[0])
+	}
+	if actual := hex.EncodeToString(clusters[0].ID); actual != "49378714f05008409b2134392a13f8c4" {
+		t.Fatalf("unexpected cluster ID: %s", actual)
+	}
+}
+
+func TestCheckAdminAccessRejectsUnrecognizedClusterResponse(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	deadline := time.Now().Add(time.Second)
+	_ = client.SetDeadline(deadline)
+	_ = server.SetDeadline(deadline)
+	go func() {
+		defer server.Close()
+		reader := newFrameReader(bufio.NewReader(server))
+		if _, err := reader.readFrame(maxProtocolFrame); err != nil {
+			return
+		}
+		_, _ = server.Write(MessageEnd)
+		if _, err := reader.readFrame(maxProtocolFrame); err != nil {
+			return
+		}
+		_, _ = server.Write(MessageEnd)
+	}()
+
+	authenticationFrame := []byte("3ace6d91-51bb-4344-9388-c8105ad4ad11 d775ecad-e471-41a1-9031-9b4c60a13dbf")
+	reader := newFrameReader(bufio.NewReader(client))
+	_, _, _, err := checkAdminAccessWithFlag(client, reader, authenticationFrame, "8.3.27.1936", 0)
+	if err == nil || !strings.Contains(err.Error(), "не удалось разобрать ответ со списком кластеров") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

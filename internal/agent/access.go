@@ -57,6 +57,22 @@ func checkAdminAccess(connection net.Conn, reader *frameReader, authenticationFr
 	return checkAdminAccessWithFlag(connection, reader, authenticationFrame, platformVersion, 0)
 }
 
+func adminRequestParameters(platformVersion string, flagOverride byte) (byte, byte) {
+	requestID := infoBaseSequence[0][19]
+	requestFlag := byte(0x06)
+	switch {
+	case strings.HasPrefix(platformVersion, "8.3.27."):
+		requestID = 0xa1
+		requestFlag = 0x53
+	case platformVersion == "8.3.23.1782":
+		requestFlag = 0x4c
+	}
+	if flagOverride != 0 {
+		requestFlag = flagOverride
+	}
+	return requestID, requestFlag
+}
+
 func checkAdminAccessWithFlag(connection net.Conn, reader *frameReader, authenticationFrame []byte, platformVersion string, flagOverride byte) ([]ClusterInfo, AdminStatus, string, error) {
 	ids := uuidPattern.FindAllString(string(authenticationFrame), -1)
 	if len(ids) < 2 {
@@ -73,14 +89,9 @@ func checkAdminAccessWithFlag(connection net.Conn, reader *frameReader, authenti
 		return nil, AdminUnknown, "", fmt.Errorf("ответ привязки AdminProcess: %w", err)
 	}
 
-	requestFlag := byte(0x06)
-	if platformVersion == "8.3.23.1782" {
-		requestFlag = 0x4c
-	}
-	if flagOverride != 0 {
-		requestFlag = flagOverride
-	}
+	requestID, requestFlag := adminRequestParameters(platformVersion, flagOverride)
 	centralRequest := withSessionID(infoBaseSequence[0], ids[1])
+	centralRequest[19] = requestID
 	centralRequest[20] = requestFlag
 	if _, err := connection.Write(centralRequest); err != nil {
 		return nil, AdminUnknown, "", fmt.Errorf("запрос списка кластеров: %w", err)
@@ -100,16 +111,19 @@ func checkAdminAccessWithFlag(connection net.Conn, reader *frameReader, authenti
 		}
 	}
 
+	if len(clusters) == 0 {
+		return nil, AdminUnknown, "", fmt.Errorf("не удалось разобрать ответ со списком кластеров: получено %d байт", len(centralResponse))
+	}
+
 	adminStatus := AdminUnknown
 	adminDetail := ""
-	requestID := uint16(infoBaseSequence[0][19])
 	currentCluster := 0
 	for step := 1; step <= 100; step++ {
 		operation := (step-1)%3 + 1
 		requestID++
 		request := withSessionID(infoBaseSequence[operation], ids[1])
 		request = withClusterID(request, clusters[currentCluster].ID, currentCluster, platformVersion)
-		request[19] = byte(requestID)
+		request[19] = requestID
 		request[20] = requestFlag
 		if _, err := connection.Write(request); err != nil {
 			return clusters, adminStatus, adminDetail, err
@@ -156,8 +170,11 @@ func clusterEntries(data []byte) []ClusterInfo {
 	for index := 16; index+1 < len(data); index += 2 {
 		nameStart := index + 2
 		var name []rune
-		if data[index] == 0x0b {
+		if data[index] == 0x0b || data[index] == 0x9a {
 			nameStart = index + 1
+			if data[index] == 0x9a {
+				nameStart++
+			}
 			for nameStart < len(data) && (data[nameStart] == 0x20 || data[nameStart] >= 0x21 && data[nameStart] < 0x7f) {
 				name = append(name, rune(data[nameStart]))
 				nameStart++

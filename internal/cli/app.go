@@ -243,7 +243,7 @@ func runAgentRelay(args []string, stdout, stderr io.Writer) int {
 	listenHost := flags.String("listen-host", "127.0.0.1", "Адрес прослушивания relay")
 	listenPort := flags.Int("listen-port", 15400, "Порт прослушивания relay")
 	allowIP := flags.String("allow", "", "IP единственного разрешённого клиента")
-	dumpPath := flags.String("dump", "agent-relay.log", "Новый файл дампа")
+	dumpPath := flags.String("dump", "agent-relay.log", "Новый файл дампа; /dev/null — без записи")
 	rewriteFrom := flags.String("rewrite-from", "", "Исходное имя хоста в ответах сервера")
 	rewriteTo := flags.String("rewrite-to", "", "Новое имя хоста той же длины")
 	maxConnections := flags.Int("max-connections", 1, "Число подключений; 0 — без ограничений")

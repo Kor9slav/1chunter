@@ -51,7 +51,11 @@ func RunRelay(config RelayConfig, output io.Writer) error {
 		return fmt.Errorf("запуск relay на %s: %w", listenAddress, err)
 	}
 	defer listener.Close()
-	dump, err := os.OpenFile(config.DumpPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	dumpFlags := os.O_CREATE | os.O_EXCL | os.O_WRONLY
+	if config.DumpPath == os.DevNull {
+		dumpFlags = os.O_WRONLY
+	}
+	dump, err := os.OpenFile(config.DumpPath, dumpFlags, 0o600)
 	if err != nil {
 		return fmt.Errorf("создание файла дампа %s: %w", config.DumpPath, err)
 	}

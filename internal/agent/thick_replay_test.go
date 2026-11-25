@@ -25,6 +25,13 @@ func TestCompressedHexVersion(t *testing.T) {
 	if actual := compressedHexVersion(module, moduleVersionPattern); actual != moduleExpected {
 		t.Fatalf("alternate 1CSDC version: got %q, want %q", actual, moduleExpected)
 	}
+
+	short := []byte(`v="b83e6ad35a928845985785da480a39f`)
+	short = append(short, 0x47, 0x3f, '"')
+	const shortExpected = "b83e6ad35a928845985785da480a39f0"
+	if actual := compressedHexVersion(short, formVersionPattern); actual != shortExpected {
+		t.Fatalf("1CSDC 0x3f version: got %q, want %q", actual, shortExpected)
+	}
 }
 
 func TestCompressedHexVersionRejectsIncompleteValue(t *testing.T) {
